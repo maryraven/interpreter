@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Iterator;
 
 // Ett syntaxtrad
 abstract class ParseTree {
@@ -20,8 +21,7 @@ class Leaf extends ParseTree{
 	}
 }
 
-class Branch extends ParseTree{
-	
+class Branch extends ParseTree implements Iterable{
 	private ArrayList<ParseTree> children;
 	
 	public Branch(TokenType operation) {
@@ -49,5 +49,10 @@ class Branch extends ParseTree{
 	
 	public boolean hasChildren() {
 		return (children.size() > 0);
+	}
+
+	@Override
+	public Iterator<ParseTree> iterator() {
+		return children.iterator();
 	}
 }

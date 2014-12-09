@@ -7,28 +7,20 @@ import java.util.NoSuchElementException;
 
 public class Parser {
 	private Lexer lex;
-	
 	private Branch syntaxTree;
-	
-	public String color;
-	public boolean penDown;
-	public int angle;
 
 	public Parser(FileInputStream in) throws SyntaxError, IOException {
 		this.lex = new Lexer(in);
-		this.color = "#0000FF"; // blue color
-		this.angle = 0;
 		//this.syntaxTree = new Branch(null); // the root node is a branch and type null
-		this.syntaxTree = this.statement(new Branch(null));
-		System.out.println("I'm done");
+		this.syntaxTree = this.parse(new Branch(null));
 	}
 	
-	public Branch statement(Branch root) throws SyntaxError {
-		return this.statement(root, 0);
+	public Branch parse(Branch root) throws SyntaxError {
+		return this.parse(root, 0);
 	}
 
 	// for some cases we need exact one more full statement. This is why we have numCmds. The overloaded version is for easy use
-	public Branch statement(Branch root, int numCmds) throws SyntaxError {
+	public Branch parse(Branch root, int numCmds) throws SyntaxError {
 		Token t = null;
 		Branch newBranch = null;
 		boolean doBreak = false;
@@ -54,27 +46,27 @@ public class Parser {
 				case left:
 				case right:
 					newBranch = new Branch(t.getType());
-					newBranch.addChild(this.parameter(TokenType.number));
-					if (this.cmdend())
+					newBranch.addChild(this.makeLeaf(TokenType.number));
+					if (this.hasDot())
 						root.addChild(newBranch);
 					break;
 				
 				case color:
 					newBranch = new Branch(t.getType());
-					newBranch.addChild(this.parameter(TokenType.hex));
-					if (this.cmdend())
+					newBranch.addChild(this.makeLeaf(TokenType.hex));
+					if (this.hasDot())
 						root.addChild(newBranch);
 					break;
 				
 				case up:
 				case down:
-					if (this.cmdend())
+					if (this.hasDot())
 						root.addChild(new Leaf(t.getType(), null));
 					break;
 					
 				case rep:  // this last one will cause our loops to exit by adding a new leaf "quote"
 					newBranch = new Branch(t.getType());
-					newBranch.addChild(this.parameter(TokenType.number));
+					newBranch.addChild(this.makeLeaf(TokenType.number));
 					newBranch.addChild(this.loopBody());
 					root.addChild(newBranch);
 					break;
@@ -90,7 +82,7 @@ public class Parser {
 		return root;
 	}
 		
-	public ParseTree parameter(TokenType datatype) throws SyntaxError {
+	public ParseTree makeLeaf(TokenType datatype) throws SyntaxError {
 		Token t = null;
 		
 		if (lex.hasNext()){
@@ -104,7 +96,7 @@ public class Parser {
 			throw new SyntaxError();
 	}
 
-	public boolean cmdend() throws SyntaxError {
+	public boolean hasDot() throws SyntaxError {
 		Token t = null;
 		
 		if (lex.hasNext()) {
@@ -124,10 +116,10 @@ public class Parser {
 			if (lex.peek().getType() == TokenType.quote){
 				// next token is a quote. we peeked on it so we can ignore it
 				lex.next();
-				return this.statement(body);
+				return this.parse(body);
 			}else {
 				// just get one statement, we#re in a loop with only one statement
-				return this.statement(body, 1);
+				return this.parse(body, 1);
 			}
 		} else
 			throw new SyntaxError();
