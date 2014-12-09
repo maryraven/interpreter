@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+
 // Ett syntaxtrad
 abstract class ParseTree {
 	protected TokenType token;
@@ -20,13 +22,11 @@ class Leaf extends ParseTree{
 
 class Branch extends ParseTree{
 	
-	private ParseTree left;
-	private ParseTree right;
+	private ArrayList<ParseTree> children;
 	
-	public Branch(TokenType operation, ParseTree left, ParseTree right) {
+	public Branch(TokenType operation) {
 		this.token = operation;
-		this.left = left;
-		this.right = right;
+		this.children = new ArrayList<ParseTree>();
 	}
 	
 	@Override
@@ -35,28 +35,19 @@ class Branch extends ParseTree{
 		return null;
 	}
 	
+	public void addChild(ParseTree pt) {
+		children.add(pt);
+	}
 
-	public TokenType getToken() {
+	public TokenType getOperation() {
 		return this.token;
 	}
 
-	public void setToken(TokenType token) {
+	public void setOperation(TokenType token) {
 		this.token = token;
 	}
-
-	public ParseTree getLeft() {
-		return left;
-	}
-
-	public void setLeft(ParseTree left) {
-		this.left = left;
-	}
-
-	public ParseTree getRight() {
-		return right;
-	}
-
-	public void setRight(ParseTree right) {
-		this.right = right;
+	
+	public boolean hasChildren() {
+		return (children.size() > 0);
 	}
 }
