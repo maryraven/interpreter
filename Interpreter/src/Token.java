@@ -1,5 +1,3 @@
-
-
 enum TokenType {
 	forw, back, up, down, right, left, rep, color, dot, quote, data, number, invalid, space, hex;
 };
@@ -15,7 +13,7 @@ public class Token {
 	private int lineNumber = 0;
 	
 	/**
-	 * Konstuktor f�r Forw Back Left Right
+	 * Konstuktor for Forw Back Left Right
 	 */
 	public Token(TokenType type, String data, int lineNumber) {
 		this.type = type;

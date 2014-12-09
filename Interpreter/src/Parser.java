@@ -18,40 +18,56 @@ public class Parser {
 		this.color = "#0000FF"; // blue color
 		this.angle = 0;
 		//this.syntaxTree = new Branch(null); // the root node is a branch and type null
-		this.syntaxTree = this.statement();
+		this.syntaxTree = this.statement(new Branch(null));
+		System.out.println("I'm done");
 	}
 
-	public ParseTree statement() throws SyntaxError {
+	public ParseTree statement(Branch root) throws SyntaxError {
 		Token t = null;
+		Branch newBranch = null;
 		
 		while (itr.hasNext()){
 			t = itr.next();
+			// ToDo: change this to a switch statement. The if looks ugly as hell
 			if (t.getType() == TokenType.forw ||
 					t.getType() == TokenType.back ||
 					t.getType() == TokenType.left ||
-					t.getType() == TokenType.right ||
-					t.getType() == TokenType.color) {
-				return new Branch(t.getType(), this.parameter(), this.statement());
+					t.getType() == TokenType.right) {
+				newBranch = new Branch(t.getType());
+				newBranch.addChild(this.parameter(TokenType.number));
+				if (this.cmdend())
+					root.addChild(newBranch);
+			} else if (t.getType() == TokenType.color) {
+				newBranch = new Branch(t.getType());
+				newBranch.addChild(this.parameter(TokenType.hex));
+				if (this.cmdend())
+					root.addChild(newBranch);
 			} else if (t.getType() == TokenType.up ||
 						t.getType() == TokenType.down){
-				return new Branch(t.getType(), this.cmdend(), this.statement());
-			} else if (t.getType() == TokenType.quote) {  // this last one will casuse our loops to exit by adding a new leaf "quote"
-				return new Leaf(t.getType(), t.getData());
+				if (this.cmdend())
+					root.addChild(new Leaf(t.getType(), null));
+			} else if (t.getType() == TokenType.rep) {  // this last one will cause our loops to exit by adding a new leaf "quote"
+				newBranch = new Branch(t.getType());
+				newBranch.addChild(this.parameter(TokenType.number));
+				newBranch.addChild(this.block());
+				root.addChild(newBranch);
+			} else if (t.getType() == TokenType.quote) {
+				break;  // don't att anything, just return the changed root
+				// ToDo: check if this breaks if quote is the last token!
 			}else {
 				throw new SyntaxError();
 			}
 		}
-		return null;
+		return root;
 	}
 		
-	public ParseTree parameter() throws SyntaxError {
+	public ParseTree parameter(TokenType datatype) throws SyntaxError {
 		Token t = null;
 		
-		while (itr.hasNext()){
+		if (itr.hasNext()){
 			t = itr.next();
-			if (t.getType() == TokenType.number ||
-					t.getType() == TokenType.hex) {
-				return new Branch(t.getType(), this.cmdend(), new Leaf(t.getType(), t.getData()));
+			if (t.getType() == datatype) {
+				return new Leaf(t.getType(), t.getData());
 			} else {
 				throw new SyntaxError();
 			}
@@ -59,27 +75,29 @@ public class Parser {
 		return null;
 	}
 
-	public ParseTree cmdend() throws SyntaxError {
+	public boolean cmdend() throws SyntaxError {
 		Token t = null;
 		
-		while (itr.hasNext()){
+		if (itr.hasNext()){
 			t = itr.next();
 			if (t.getType() == TokenType.dot) {
-				return new Leaf(t.getType(), "dot");
+				return true;
 			}else {
 				throw new SyntaxError();
 			}
 		}
-		return null;
+		return false;
 	}
 	
 	public ParseTree block() throws SyntaxError {
 		Token t = null;
+		Branch newBranch = null;
 		
-		while (itr.hasNext()){
+		if (itr.hasNext()){
 			t = itr.next();
 			if (t.getType() == TokenType.quote) {
-				return new Branch(t.getType(), this.statement(), null);
+				newBranch = new Branch(t.getType());
+				return this.statement(newBranch);
 			}else {
 				throw new SyntaxError();
 			}
