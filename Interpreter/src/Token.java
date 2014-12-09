@@ -1,5 +1,5 @@
 enum TokenType {
-	forw, back, up, down, right, left, rep, color, dot, quote, data, number, invalid, space, hex;
+	forw, back, up, down, right, left, rep, color, dot, quote, data, number, hex, loopbody;
 };
 
 // Klass for att representera en token

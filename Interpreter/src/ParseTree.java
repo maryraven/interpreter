@@ -46,4 +46,8 @@ class Branch extends ParseTree{
 	public void setOperation(TokenType token) {
 		this.token = token;
 	}
+	
+	public boolean hasChildren() {
+		return (children.size() > 0);
+	}
 }

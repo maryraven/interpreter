@@ -1,61 +1,90 @@
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 public class Parser {
-	private ArrayList<Token> tokens;
-	Iterator<Token> itr;
+	private Lexer lex;
 	
-	private ParseTree syntaxTree;
+	private Branch syntaxTree;
 	
 	public String color;
 	public boolean penDown;
 	public int angle;
 
-	public Parser(ArrayList<Token> tokens) throws SyntaxError {
-		this.tokens = tokens;
-		this.itr = tokens.iterator();
+	public Parser(FileInputStream in) throws SyntaxError, IOException {
+		this.lex = new Lexer(in);
 		this.color = "#0000FF"; // blue color
 		this.angle = 0;
 		//this.syntaxTree = new Branch(null); // the root node is a branch and type null
 		this.syntaxTree = this.statement(new Branch(null));
 		System.out.println("I'm done");
 	}
+	
+	public Branch statement(Branch root) throws SyntaxError {
+		return this.statement(root, 0);
+	}
 
-	public ParseTree statement(Branch root) throws SyntaxError {
+	// for some cases we need exact one more full statement. This is why we have numCmds. The overloaded version is for easy use
+	public Branch statement(Branch root, int numCmds) throws SyntaxError {
 		Token t = null;
 		Branch newBranch = null;
+		boolean doBreak = false;
+		int cmds =  0;
 		
-		while (itr.hasNext()){
-			t = itr.next();
+		
+		while (lex.hasNext() && !doBreak){
+			// it was specified to get a certain amount of statements. 
+			if (numCmds != 0) {
+				// if we reach this number we break the loop and return
+				if ( cmds < numCmds)
+					cmds++;
+				else
+					break;
+			}
+
+			t = lex.next();
+			
 			// ToDo: change this to a switch statement. The if looks ugly as hell
-			if (t.getType() == TokenType.forw ||
-					t.getType() == TokenType.back ||
-					t.getType() == TokenType.left ||
-					t.getType() == TokenType.right) {
-				newBranch = new Branch(t.getType());
-				newBranch.addChild(this.parameter(TokenType.number));
-				if (this.cmdend())
+			switch (t.getType()) {
+				case forw:
+				case back:
+				case left:
+				case right:
+					newBranch = new Branch(t.getType());
+					newBranch.addChild(this.parameter(TokenType.number));
+					if (this.cmdend())
+						root.addChild(newBranch);
+					break;
+				
+				case color:
+					newBranch = new Branch(t.getType());
+					newBranch.addChild(this.parameter(TokenType.hex));
+					if (this.cmdend())
+						root.addChild(newBranch);
+					break;
+				
+				case up:
+				case down:
+					if (this.cmdend())
+						root.addChild(new Leaf(t.getType(), null));
+					break;
+					
+				case rep:  // this last one will cause our loops to exit by adding a new leaf "quote"
+					newBranch = new Branch(t.getType());
+					newBranch.addChild(this.parameter(TokenType.number));
+					newBranch.addChild(this.loopBody());
 					root.addChild(newBranch);
-			} else if (t.getType() == TokenType.color) {
-				newBranch = new Branch(t.getType());
-				newBranch.addChild(this.parameter(TokenType.hex));
-				if (this.cmdend())
-					root.addChild(newBranch);
-			} else if (t.getType() == TokenType.up ||
-						t.getType() == TokenType.down){
-				if (this.cmdend())
-					root.addChild(new Leaf(t.getType(), null));
-			} else if (t.getType() == TokenType.rep) {  // this last one will cause our loops to exit by adding a new leaf "quote"
-				newBranch = new Branch(t.getType());
-				newBranch.addChild(this.parameter(TokenType.number));
-				newBranch.addChild(this.block());
-				root.addChild(newBranch);
-			} else if (t.getType() == TokenType.quote) {
-				break;  // don't att anything, just return the changed root
-				// ToDo: check if this breaks if quote is the last token!
-			}else {
-				throw new SyntaxError();
+					break;
+					
+				case quote:
+					doBreak = true;
+					break;  // don't add anything, just return the changed root
+					// ToDo: check if this breaks if quote is the last token!
+				default:
+					throw new SyntaxError();
 			}
 		}
 		return root;
@@ -64,169 +93,43 @@ public class Parser {
 	public ParseTree parameter(TokenType datatype) throws SyntaxError {
 		Token t = null;
 		
-		if (itr.hasNext()){
-			t = itr.next();
+		if (lex.hasNext()){
+			t = lex.next();
 			if (t.getType() == datatype) {
 				return new Leaf(t.getType(), t.getData());
 			} else {
 				throw new SyntaxError();
 			}
-		}
-		return null;
+		} else
+			throw new SyntaxError();
 	}
 
 	public boolean cmdend() throws SyntaxError {
 		Token t = null;
 		
-		if (itr.hasNext()){
-			t = itr.next();
-			if (t.getType() == TokenType.dot) {
+		if (lex.hasNext()) {
+			if (lex.next().getType() == TokenType.dot) {
 				return true;
 			}else {
 				throw new SyntaxError();
 			}
-		}
-		return false;
+		} else
+			throw new SyntaxError();
 	}
 	
-	public ParseTree block() throws SyntaxError {
-		Token t = null;
-		Branch newBranch = null;
+	public ParseTree loopBody() throws SyntaxError {
+		Branch body = new Branch(TokenType.loopbody);
 		
-		if (itr.hasNext()){
-			t = itr.next();
-			if (t.getType() == TokenType.quote) {
-				newBranch = new Branch(t.getType());
-				return this.statement(newBranch);
+		if (lex.hasNext()) {
+			if (lex.peek().getType() == TokenType.quote){
+				// next token is a quote. we peeked on it so we can ignore it
+				lex.next();
+				return this.statement(body);
 			}else {
-				throw new SyntaxError();
+				// just get one statement, we#re in a loop with only one statement
+				return this.statement(body, 1);
 			}
-		}
-		return null;
+		} else
+			throw new SyntaxError();
 	}
-
-	/**
-	public Branch parse(Branch currentNode) throws SyntaxError {
-		
-		Token currentToken = null;
-		Token tmpToken = null;
-		Branch tmpBranch = null;
-		
-				
-		while (itr.hasNext()) {
-			currentToken = itr.next();
-			
-			switch (currentToken.getType()) {
-			// we're adding leafs here which have the same syntax
-			case down:
-			case up:
-				if (!itr.hasNext() || itr.next().getType() != TokenType.dot)
-					throw new SyntaxError();
-
-				currentNode.setLeft(new Leaf(currentToken.getType(), currentToken.getData()));
-				break;
-
-			// This is all branches of the same type: statement data .
-			case color:
-				// check next element for propper syntax
-				if (itr.hasNext()) {
-					tmpToken = itr.next();
-				} else
-					throw new SyntaxError();
-				
-				// check propper command end
-				if (!itr.hasNext() || itr.next().getType() != TokenType.dot)
-					throw new SyntaxError();
-				
-				// ToDo: check valid number here!!
-				if (tmpToken.getType() != TokenType.hex)
-					throw new SyntaxError();
-				//check data if correct color code
-				
-				tmpBranch = new Branch(currentToken.getType());
-				tmpBranch.setLeft(new Leaf(tmpToken.getType(), tmpToken.getData()));
-				tmpBranch.setLeft(new Leaf(tmpToken.getType(), tmpToken.getData()));
-				rootNode.addChild(tmpBranch);
-				break;
-				
-			case left:
-			case right:
-				// check next element for propper syntax
-				if (itr.hasNext()) {
-					tmpToken = itr.next();
-				} else
-					throw new SyntaxError();
-				
-				// check propper command end
-				if (!itr.hasNext() || itr.next().getType() != TokenType.dot)
-					throw new SyntaxError();
-				
-				// ToDo: check valid number here!!
-				if (tmpToken.getType() != TokenType.number)
-					throw new SyntaxError();
-				//check data if angel
-				
-				tmpBranch = new Branch(currentToken.getType());
-				tmpBranch.addChild(new Leaf(tmpToken.getType(), tmpToken.getData()));
-				rootNode.addChild(tmpBranch);
-				break;
-				
-			case forw:
-			case back:
-				// check next element for propper syntax
-				if (itr.hasNext()) {
-					tmpToken = itr.next();
-				} else
-					throw new SyntaxError();
-				
-				// check propper command end
-				if (!itr.hasNext() || itr.next().getType() != TokenType.dot)
-					throw new SyntaxError();
-				
-				// ToDo: check valid number here!!
-				if (tmpToken.getType() != TokenType.number)
-					throw new SyntaxError();
-				//check data if range correct etc
-				
-				tmpBranch = new Branch(currentToken.getType());
-				tmpBranch.addChild(new Leaf(tmpToken.getType(), tmpToken.getData()));
-				rootNode.addChild(tmpBranch);
-				break;
-				
-			case rep:
-				
-				/** TODO!!
-				if (itr.next().getType() == TokenType.number) {
-					
-				} else
-					throw new SyntaxError();
-				
-				if (itr.next().getType() == TokenType.quote) {
-					
-				} else
-					throw new SyntaxError();
-				
-				// check for commands
-				
-				if (itr.next().getType() == TokenType.quote) {
-					
-				} else
-					throw new SyntaxError();
-				
-				break;
-				
-				
-			case quote:
-				// here should the actual part of the tree be returned
-				// we'll work recursive so we can assume that if we find a
-				// quote, this is an ending quote, not another nested loop
-				return rootNode; 
-				
-			default:
-				throw new SyntaxError(); 
-			}
-		}
-		return null;
-	}
-	**/
 }

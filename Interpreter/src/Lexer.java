@@ -1,4 +1,6 @@
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.io.Reader;
@@ -7,7 +9,8 @@ import java.io.InputStreamReader;
 
 public class Lexer {
 	private ArrayList<Token> tokens;
-	
+	private Iterator<Token> itr;
+	private Token currentToken, nextToken;
 	/**
 	 * 
 	 * Reads in the file i think
@@ -31,6 +34,38 @@ public class Lexer {
 	public Lexer(InputStream in) throws java.io.IOException, SyntaxError {
 		// This will contain the resulting tokens
 		this.tokens = new ArrayList<Token>();
+		this.lex(in);
+		
+		// prepare iterator and internal cache
+		this.itr = tokens.iterator();
+		if (itr.hasNext())
+			this.currentToken = itr.next();
+		else this.currentToken = null;
+	}
+	
+	public boolean hasNext() {
+		return (this.currentToken != null);
+	}
+	
+	// moves the iterator and returns the old Token (like a normal iterator)
+	public Token next(){
+		Token tmp = this.currentToken;
+		if (itr.hasNext())
+			this.currentToken = itr.next();
+		else
+			this.currentToken = null;
+		return tmp;
+	}
+	
+	// returns token without moving the iterator
+	public Token peek() throws NoSuchElementException {
+		if (this.currentToken != null)
+			return this.currentToken;
+		else
+			throw new NoSuchElementException();
+	}
+	
+	private void lex(InputStream in) throws java.io.IOException, SyntaxError {
 		String[] splitline = null;
 		
 		// match patterns

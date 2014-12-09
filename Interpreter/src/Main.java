@@ -22,7 +22,7 @@ import java.io.FileInputStream;
  */
 public class Main {
 	public static void main(String args[]) throws java.io.IOException, SyntaxError {
-		Parser parser = new Parser(new Lexer(new FileInputStream("/home/marco/input.in")).getTokenList());
+		Parser parser = new Parser(new FileInputStream("/home/marco/input.in"));
 		//System.out.println(result.evaluate());
 	}
 }
