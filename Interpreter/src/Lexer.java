@@ -10,7 +10,7 @@ import java.io.InputStreamReader;
 public class Lexer {
 	private ArrayList<Token> tokens;
 	private Iterator<Token> itr;
-	private Token currentToken, nextToken;
+	private Token currentToken;
 	/**
 	 * 
 	 * Reads in the file i think
